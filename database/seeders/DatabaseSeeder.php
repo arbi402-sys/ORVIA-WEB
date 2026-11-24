@@ -23,6 +23,6 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(\Database\Seeders\CategorySeeder::class);
-+        $this->call(\Database\Seeders\SampleArtworksSeeder::class);
+        $this->call(\Database\Seeders\SampleArtworksSeeder::class);
     }
 }

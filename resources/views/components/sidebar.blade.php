@@ -68,12 +68,16 @@
 
     <ul class="sidebar-list" style="margin-bottom:16px;">
         <li class="sidebar-item" title="Setting">
-            <div class="sidebar-icon"><img src="/images/icon/setting.png" alt="setting icon"></div>
-            <div class="sidebar-label">Setting</div>
+            <a href="{{ route('not-found') }}" style="all:unset;display:flex;align-items:center;gap:12px;width:100%;padding:8px 0;cursor:pointer;">
+                <div class="sidebar-icon"><img src="/images/icon/setting.png" alt="setting icon"></div>
+                <div class="sidebar-label">Setting</div>
+            </a>
         </li>
         <li class="sidebar-item" title="Help">
-            <div class="sidebar-icon"><img src="/images/icon/help.png" alt="help icon"></div>
-            <div class="sidebar-label">Help</div>
+            <a href="{{ route('not-found') }}" style="all:unset;display:flex;align-items:center;gap:12px;width:100%;padding:8px 0;cursor:pointer;">
+                <div class="sidebar-icon"><img src="/images/icon/help.png" alt="help icon"></div>
+                <div class="sidebar-label">Help</div>
+            </a>
         </li>
         @auth
         <li class="sidebar-item" title="Logout">

@@ -2,33 +2,64 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        // Temporary: add logging middleware to web group for debugging auth/session
         if ($this->app->runningInConsole() === false) {
             $router = $this->app->make('router');
             if (method_exists($router, 'pushMiddlewareToGroup')) {
                 $router->pushMiddlewareToGroup('web', \App\Http\Middleware\LogAuthSession::class);
-                // Update last_activity for signed-in users (used for "online" indicator)
                 $router->pushMiddlewareToGroup('web', \App\Http\Middleware\UpdateLastActivity::class);
-                // Prevent caching of HTML pages to avoid stale auth state in browser
                 $router->pushMiddlewareToGroup('web', \App\Http\Middleware\PreventPageCache::class);
             }
         }
+
+        // Share unread message & notification counters globally for sidebar badges
+        View::composer('*', function ($view) {
+            $unreadMessages = 0;
+            $unreadNotifications = 0;
+            $pendingCollaborations = 0;
+            $pendingInstitutionsCount = 0;
+
+            if (Auth::check()) {
+                $user = Auth::user();
+                try {
+                    if (Schema::hasTable('messages') && Schema::hasTable('conversation_participants')) {
+                        $unreadMessages = $user->unreadMessagesCount();
+                    }
+                    if (Schema::hasTable('user_notifications')) {
+                        $unreadNotifications = $user->unreadNotificationsCount();
+                    }
+                    if ($user->isVerifiedInstitution() && Schema::hasTable('collaborations')) {
+                        $pendingCollaborations = $user->incomingCollaborations()->where('status', 'pending')->count();
+                    }
+                    if ($user->isAdmin() && Schema::hasTable('users')) {
+                        $pendingInstitutionsCount = \App\Models\User::where('role', 'institution')
+                            ->where('verification_status', 'pending')
+                            ->count();
+                    }
+                } catch (\Throwable $e) {
+                    // Fail safely during early migrations or partial schema states
+                }
+            }
+
+            $view->with([
+                'globalUnreadMessages' => $unreadMessages,
+                'globalUnreadNotifications' => $unreadNotifications,
+                'globalPendingCollaborations' => $pendingCollaborations,
+                'globalPendingInstitutionsCount' => $pendingInstitutionsCount,
+            ]);
+        });
     }
 }

@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Mukta', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-auth: 'Poppins', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+    --color-orvia-bg: #0B0B0B;
+    --color-orvia-surface: #15151C;
+    --color-orvia-elevated: #1D1D27;
+    --color-orvia-border: #262634;
+    --color-orvia-primary: #A332F7;
+    --color-orvia-primary-hover: #B64DFF;
+    --color-orvia-primary-dark: #690461;
+    --color-orvia-deep: #650EA6;
+    --color-orvia-text: #FEFEFE;
+    --color-orvia-muted: #A1A1A1;
+    --color-orvia-verified: #FACC15;
+    --color-orvia-cyan: #37B9D6;
+    --color-orvia-danger: #F31415;
+}
+
+@layer base {
+    html {
+        background-color: var(--color-orvia-bg);
+        color: var(--color-orvia-text);
+        font-family: var(--font-sans);
+        scroll-behavior: smooth;
+    }
+
+    body {
+        background-color: var(--color-orvia-bg);
+        color: var(--color-orvia-text);
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    html.theme-light {
+        --color-orvia-bg: #F5F5F7;
+        --color-orvia-surface: #FFFFFF;
+        --color-orvia-elevated: #F0EEF6;
+        --color-orvia-border: #E2E0EC;
+        --color-orvia-text: #15151C;
+        --color-orvia-muted: #666677;
+    }
+}
+
+/* Custom Scrollbar matching dark surface */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--color-orvia-bg);
+}
+::-webkit-scrollbar-thumb {
+    background: #2C2C3A;
+    border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #3F3F52;
+}
+
+/* Orvia Utility Classes */
+.orvia-card {
+    background-color: var(--color-orvia-surface);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.orvia-btn-primary {
+    background-color: var(--color-orvia-primary);
+    color: #FFFFFF;
+    border-radius: 100px;
+    font-weight: 600;
+    transition: background-color 150ms ease, transform 120ms ease;
+}
+.orvia-btn-primary:hover {
+    background-color: var(--color-orvia-primary-hover);
+}
+
+.orvia-btn-gradient {
+    background: linear-gradient(180deg, #A332F7 0%, #690461 100%);
+    color: #FDFDFD;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: filter 150ms ease, transform 120ms ease;
+}
+.orvia-btn-gradient:hover {
+    filter: brightness(1.1);
+}
+
+.orvia-pill {
+    border-radius: 100px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: var(--color-orvia-muted);
+    transition: all 150ms ease;
+}
+.orvia-pill:hover {
+    border-color: var(--color-orvia-primary);
+    color: var(--color-orvia-text);
+}
+.orvia-pill-active {
+    background-color: var(--color-orvia-primary);
+    border-color: var(--color-orvia-primary);
+    color: #FFFFFF;
+}
+
+.orvia-input {
+    background-color: var(--color-orvia-bg);
+    border: 1px solid var(--color-orvia-border);
+    color: var(--color-orvia-text);
+    border-radius: 10px;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.orvia-input:focus {
+    outline: none;
+    border-color: var(--color-orvia-primary);
+    box-shadow: 0 0 0 2px rgba(163, 50, 247, 0.2);
+}
+
+/* Substack-style comfortable long-form reader typography */
+.orvia-prose {
+    color: #E4E4EC;
+    font-size: 1.125rem;
+    line-height: 1.85;
+}
+html.theme-light .orvia-prose {
+    color: #242433;
+}
+.orvia-prose h2 {
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: var(--color-orvia-text);
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+}
+.orvia-prose h3 {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--color-orvia-text);
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+.orvia-prose p {
+    margin-bottom: 1.25rem;
+}
+.orvia-prose blockquote {
+    border-left: 3px solid var(--color-orvia-primary);
+    padding-left: 1rem;
+    font-style: italic;
+    color: var(--color-orvia-muted);
+    margin: 1.5rem 0;
+}
+.orvia-prose ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+.orvia-prose ol {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+    margin-bottom: 1.25rem;
+}
+.orvia-prose a {
+    color: var(--color-orvia-primary);
+    text-decoration: underline;
+}

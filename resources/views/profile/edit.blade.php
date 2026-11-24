@@ -4,6 +4,23 @@
 <div class="container">
     <h1>Edit Profile</h1>
 
+    @if ($errors->any())
+        <div style="background:#f8d7da;border:1px solid #f5c6cb;color:#721c24;padding:12px;border-radius:4px;margin-bottom:16px;">
+            <strong>Ada kesalahan:</strong>
+            <ul style="margin:8px 0 0 0;padding-left:20px;">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    @if (session('success'))
+        <div style="background:#d4edda;border:1px solid #c3e6cb;color:#155724;padding:12px;border-radius:4px;margin-bottom:16px;">
+            {{ session('success') }}
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data">
         @csrf
         @method('PUT')
@@ -46,16 +63,12 @@
             <input name="city" value="{{ old('city', $user->city) }}">
         </div>
         <div>
-            <label>Location</label>
-            <input name="location" value="{{ old('location', $user->location) }}">
-        </div>
-        <div>
             <label>Website</label>
-            <input name="website" value="{{ old('website', $user->website) }}">
+            <input type="url" name="website" value="{{ old('website', $user->website) }}">
         </div>
         <div>
             <label>Instagram URL</label>
-            <input name="ig" value="{{ old('ig', $user->ig) }}">
+            <input type="url" name="ig" value="{{ old('ig', $user->ig) }}">
         </div>
 
         <div>
@@ -71,7 +84,7 @@
         </div>
 
         <div>
-            <button class="btn">Save</button>
+            <button type="submit" class="btn">Save</button>
         </div>
     </form>
 </div>

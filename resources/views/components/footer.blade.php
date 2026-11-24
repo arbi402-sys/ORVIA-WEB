@@ -27,8 +27,8 @@
       </div>
 
       <div class="social-icons">
-        <a href="#" aria-label="Instagram"><img src="/images/instagram-icon-33472.png" alt="Instagram" /></a>
-        <a href="#" aria-label="LinkedIn"><img src="/images/linkedin.png" alt="LinkedIn" /></a>
+        <a href="{{ route('not-found') }}" aria-label="Instagram"><img src="/images/instagram-icon-33472.png" alt="Instagram" /></a>
+        <a href="{{ route('not-found') }}" aria-label="LinkedIn"><img src="/images/linkedin.png" alt="LinkedIn" /></a>
       </div>
     </div>
 
@@ -36,10 +36,10 @@
       <div class="footer-column">
         <h4>Support</h4>
         <ul>
-          <li><a href="#">Contact</a></li>
-          <li><a href="#">Support</a></li>
-          <li><a href="#">Login</a></li>
-          <li><a href="#">Sign Up</a></li>
+          <li><a href="{{ route('not-found') }}">Contact</a></li>
+          <li><a href="{{ route('not-found') }}">Support</a></li>
+          <li><a href="{{ route('not-found') }}">Login</a></li>
+          <li><a href="{{ route('not-found') }}">Sign Up</a></li>
         </ul>
       </div>
 

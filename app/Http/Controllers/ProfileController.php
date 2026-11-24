@@ -2,30 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\Artwork;
 use App\Models\Category;
+use App\Models\User;
+use App\Models\UserNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
 {
     public function show($identifier, Request $request)
     {
-        // allow either numeric id or username as identifier
         if (is_numeric($identifier)) {
-            // use find() so we can handle missing user with a friendly page and logging (instead of throwing)
             $user = User::find($identifier);
-            if (!$user) {
-                \Log::warning('Profile lookup failed (numeric id)', ['identifier' => $identifier, 'auth_id' => Auth::id()]);
-                $authUser = Auth::user();
-                return response()->view('errors.profile_not_found', ['identifier' => $identifier, 'authUser' => $authUser], 404);
-            }
         } else {
-            // tolerant username lookup to avoid 404s caused by encoding, dashes/spaces, or case differences
             $decoded = rawurldecode($identifier);
             $alt = str_replace('-', ' ', $decoded);
             $lower = mb_strtolower($decoded);
@@ -34,73 +26,83 @@ class ProfileController extends Controller
                 ->orWhere('username', $alt)
                 ->orWhereRaw('lower(username) = ?', [$lower])
                 ->first();
-
-            if (!$user) {
-                // last attempt: try direct equal (falls back to original behaviour)
-                $user = User::where('username', $identifier)->first();
-            }
-
-            if (!$user) {
-                // Log diagnostic info to help debug 404s originating from profile links
-                \Log::warning('Profile lookup failed (username)', ['identifier' => $identifier, 'auth_id' => Auth::id()]);
-
-                $authUser = Auth::user();
-                return response()->view('errors.profile_not_found', ['identifier' => $identifier, 'authUser' => $authUser], 404);
-            }
         }
 
-        $category = $request->get('category');
-
-        // If artworks table doesn't exist (eg tests without migrations), return an empty paginator
-        if (Schema::hasTable('artworks')) {
-            // include user on artworks so templates can reference creator info without extra queries
-            $artworks = $user->artworks()->with('category', 'user')
-                ->when($category, function ($q, $category) {
-                    $q->whereHas('category', fn($q2) => $q2->where('slug', $category));
-                })
-                ->latest()->paginate(12);
-
-            // liked and saved lists for this user (for profile tabs)
-            $liked = $user->likedArtworks()->with('category','user')->latest()->paginate(12, ['*'], 'liked_page');
-            $saved = $user->savedArtworks()->with('category','user')->latest()->paginate(12, ['*'], 'saved_page');
-        } else {
-            $artworks = new LengthAwarePaginator([], 0, 12, 1, [
-                'path' => $request->url(),
-                'query' => $request->query(),
-            ]);
-            $liked = new LengthAwarePaginator([], 0, 12, 1, ['path' => $request->url(), 'query' => $request->query()]);
-            $saved = new LengthAwarePaginator([], 0, 12, 1, ['path' => $request->url(), 'query' => $request->query()]);
+        if (!$user) {
+            return response()->view('errors.profile_not_found', [
+                'identifier' => $identifier,
+                'authUser' => Auth::user(),
+            ], 404);
         }
 
-        $categories = Schema::hasTable('categories') ? Category::all() : collect();
+        $tab = $request->get('tab', 'activity'); // activity, posts, events, articles, topics
 
-        // articles authored by this user
-        if (Schema::hasTable('articles')) {
-            $articles = $user->articles()->latest()->paginate(6);
-        } else {
-            $articles = new LengthAwarePaginator([], 0, 6, 1, ['path' => $request->url(), 'query' => $request->query()]);
-        }
+        $posts = Schema::hasTable('posts')
+            ? $user->posts()->with(['user', 'topic', 'acceptedCollaborators.collaborator'])
+                ->withCount(['likedBy', 'comments'])
+                ->where('status', 'published')
+                ->latest()->paginate(8, ['*'], 'posts_page')
+            : collect();
 
-        // Followers/following counts - guard against missing follows table
-        if (Schema::hasTable('follows')) {
-            $followersCount = $user->followers()->count();
-            $followingCount = $user->following()->count();
-            $isFollowing = Auth::check() ? Auth::user()->following()->where('followed_id', $user->id)->exists() : false;
-        } else {
-            $followersCount = 0;
-            $followingCount = 0;
-            $isFollowing = false;
-        }
+        $articles = Schema::hasTable('articles')
+            ? $user->articles()->with(['user', 'acceptedCollaborators.collaborator'])
+                ->withCount(['likedBy', 'comments'])
+                ->where('status', 'published')
+                ->latest()->paginate(8, ['*'], 'articles_page')
+            : collect();
 
-        return view('profile.show', compact('user', 'artworks', 'categories', 'isFollowing', 'followersCount', 'followingCount', 'liked', 'saved', 'articles'));
+        $events = Schema::hasTable('events')
+            ? $user->events()->with(['organizer', 'acceptedCollaborators.collaborator'])
+                ->withCount('registrations')
+                ->orderBy('event_date', 'desc')
+                ->paginate(8, ['*'], 'events_page')
+            : collect();
+
+        $topics = Schema::hasTable('topics')
+            ? $user->createdTopics()->withCount(['members', 'posts'])->latest()->get()
+            : collect();
+
+        $joinedTopics = Schema::hasTable('topic_members')
+            ? $user->joinedTopics()->withCount(['members', 'posts'])->latest()->get()
+            : collect();
+
+        $artworks = Schema::hasTable('artworks')
+            ? $user->artworks()->with('category')->latest()->limit(12)->get()
+            : collect();
+
+        $followersCount = Schema::hasTable('follows') ? $user->followers()->count() : 0;
+        $followingCount = Schema::hasTable('follows') ? $user->following()->count() : 0;
+        $isFollowing = Auth::check() && Schema::hasTable('follows')
+            ? Auth::user()->following()->where('followed_id', $user->id)->exists()
+            : false;
+
+        $totalPostsCount = ($user->posts()->where('status', 'published')->count())
+            + ($user->articles()->where('status', 'published')->count());
+
+        $userLikedPostIds = Auth::check() ? Auth::user()->likedPosts()->pluck('posts.id')->all() : [];
+        $userLikedArticleIds = Auth::check() ? Auth::user()->likedArticles()->pluck('articles.id')->all() : [];
+
+        return view('profile.show', compact(
+            'user',
+            'tab',
+            'posts',
+            'articles',
+            'events',
+            'topics',
+            'joinedTopics',
+            'artworks',
+            'followersCount',
+            'followingCount',
+            'isFollowing',
+            'totalPostsCount',
+            'userLikedPostIds',
+            'userLikedArticleIds'
+        ));
     }
 
-    
     public function edit()
     {
-        $user = Auth::user();
-        $categories = Category::all();
-        return view('profile.edit', compact('user', 'categories'));
+        return redirect()->route('settings.index', ['section' => 'profile']);
     }
 
     public function update(Request $request)
@@ -108,18 +110,21 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         $data = $request->validate([
+            'name' => 'nullable|string|max:120',
             'first_name' => 'nullable|string|max:50',
             'last_name' => 'nullable|string|max:50',
-            'username' => 'required|string|max:50|unique:users,username,'.$user->id,
+            'username' => 'nullable|string|max:50|unique:users,username,' . $user->id,
             'bio' => 'nullable|string|max:500',
             'headline' => 'nullable|string|max:150',
             'institution' => 'nullable|string|max:150',
             'location' => 'nullable|string|max:150',
-               'website' => 'nullable|url|max:255',
-               'city' => 'nullable|string|max:100',
-            'ig' => 'nullable|url',
-            'avatar' => 'nullable|image|max:2048',
-            'cover_image' => 'nullable|image|max:4096',
+            'website' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:100',
+            'social_instagram' => 'nullable|string|max:255',
+            'social_whatsapp' => 'nullable|string|max:255',
+            'social_x' => 'nullable|string|max:255',
+            'avatar' => 'nullable|image|max:4096',
+            'cover_image' => 'nullable|image|max:6144',
         ]);
 
         if ($request->hasFile('avatar')) {
@@ -129,14 +134,17 @@ class ProfileController extends Controller
             $data['cover_image'] = $request->file('cover_image')->store('covers', 'public');
         }
 
-        // derive display name from first/last name when provided
-        if (!empty($data['first_name']) || !empty($data['last_name'])) {
-            $data['name'] = trim(($data['first_name'] ?? $user->first_name).' '.($data['last_name'] ?? $user->last_name));
+        if (empty($data['name']) && (!empty($data['first_name']) || !empty($data['last_name']))) {
+            $data['name'] = trim(($data['first_name'] ?? $user->first_name) . ' ' . ($data['last_name'] ?? $user->last_name));
+        }
+
+        if (empty($data['username'])) {
+            unset($data['username']);
         }
 
         $user->update($data);
 
-        return back()->with('success', 'Profile updated.');
+        return back()->with('success', 'Profil berhasil diperbarui.');
     }
 
     public function storeArtwork(Request $request)
@@ -150,7 +158,7 @@ class ProfileController extends Controller
 
         $path = $request->file('image')->store('artworks', 'public');
 
-        $art = Artwork::create([
+        Artwork::create([
             'user_id' => Auth::id(),
             'category_id' => $request->input('category_id'),
             'title' => $request->input('title'),
@@ -158,19 +166,18 @@ class ProfileController extends Controller
             'image_path' => $path,
         ]);
 
-        return back()->with('success', 'Artwork uploaded.');
+        return back()->with('success', 'Karya berhasil diunggah.');
     }
 
-    public function destroyArtwork(\Illuminate\Http\Request $request, Artwork $art)
+    public function destroyArtwork(Request $request, Artwork $art)
     {
         $user = Auth::user();
-        if (!$user || $user->id !== $art->user_id) {
+        if (!$user || ($user->id !== $art->user_id && !$user->isAdmin())) {
             abort(403);
         }
 
-        // remove image file if present
-        if ($art->image_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($art->image_path)) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($art->image_path);
+        if ($art->image_path && Storage::disk('public')->exists($art->image_path)) {
+            Storage::disk('public')->delete($art->image_path);
         }
 
         $art->delete();
@@ -179,12 +186,12 @@ class ProfileController extends Controller
             return response()->json(['success' => true]);
         }
 
-        return back()->with('success', 'Artwork deleted.');
+        return back()->with('success', 'Karya dihapus.');
     }
 
     public function follow($username)
     {
-        $target = User::where('username', $username)->firstOrFail();
+        $target = User::where('username', $username)->orWhere('id', is_numeric($username) ? $username : 0)->firstOrFail();
         $me = Auth::user();
 
         if ($me->id === $target->id) {
@@ -192,14 +199,24 @@ class ProfileController extends Controller
         }
 
         $me->following()->syncWithoutDetaching([$target->id]);
-        return back()->with('success', 'You are now following '.$target->username);
+
+        UserNotification::notifyUser(
+            $target->id,
+            $me->id,
+            'follow',
+            'Mulai mengikuti Anda',
+            route('profile.show', $me->username ?: $me->id, false)
+        );
+
+        return back()->with('success', 'Anda sekarang mengikuti ' . $target->name);
     }
 
     public function unfollow($username)
     {
-        $target = User::where('username', $username)->firstOrFail();
+        $target = User::where('username', $username)->orWhere('id', is_numeric($username) ? $username : 0)->firstOrFail();
         $me = Auth::user();
         $me->following()->detach($target->id);
-        return back()->with('success', 'Unfollowed '.$target->username);
+
+        return back()->with('success', 'Berhenti mengikuti ' . $target->name);
     }
 }

@@ -225,7 +225,7 @@
 
                     <div id="userDropdown" style="display:none; position:absolute; right:16px; top:60px; background:white; border:1px solid #eee; box-shadow:0 6px 18px rgba(0,0,0,0.08); border-radius:8px; overflow:hidden; min-width:160px; z-index:200;">
                         <a href="{{ route('profile.show', $user->username ?: $user->id) }}" style="display:block;padding:10px 14px;color:#333;text-decoration:none;border-bottom:1px solid #f5f5f5;">Profile</a>
-                        <a href="/settings" style="display:block;padding:10px 14px;color:#333;text-decoration:none;border-bottom:1px solid #f5f5f5;">Settings</a>
+                        <a href="{{ route('not-found') }}" style="display:block;padding:10px 14px;color:#333;text-decoration:none;border-bottom:1px solid #f5f5f5;">Settings</a>
                         <form id="logoutFormNav" method="POST" action="/logout" style="margin:0;">
                             @csrf
                         </form>

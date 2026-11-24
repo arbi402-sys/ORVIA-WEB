@@ -621,11 +621,12 @@ Group 20
 
             /* Mobile grid - 2 columns like Pinterest */
             .portfolio-grid {
-                padding: 4px;
+                padding: 0px;
                 grid-template-columns: repeat(2, 1fr) !important;
                 gap: 4px;
                 grid-auto-rows: auto;
-                margin: 0;
+                margin-top: 25px;
+                margin-left: 0px;
             }
 
             .portfolio-item {
